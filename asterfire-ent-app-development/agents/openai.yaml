@@ -1,0 +1,4 @@
+interface:
+  display_name: "AsterFire Ent 模块化 App 开发"
+  short_description: "按手册封装 toB Kit/Workflow，提供友好表单、后台归档和可运行示例"
+  default_prompt: "使用 $asterfire-ent-app-development，把 toB 上的现有 Kit 或 Workflow 包装成主题一致、参数易懂、示例可填可跑并支持结果交互的 Ent App。"
