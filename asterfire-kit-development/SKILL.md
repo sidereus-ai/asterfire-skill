@@ -10,6 +10,7 @@ description: 开发、适配、修改、审查和打包 Asterfire Kit；支持�
 ## 按任务读取
 
 - 通用开发规则、表单、输出、报告、Demo 与打包：读 [references/kit-development-rules.md](references/kit-development-rules.md)。
+- 每次新建、适配、修改或审查 Kit，必须读 [输入校验与用户可见错误](references/input-validation-and-errors.md)，为本次涉及的输入实现预检，并验证具体错误进入用户报告。
 - 编写或修改用户可见文案，以及每次开发完成交付前：必须读 [用户文案与六项验收](references/user-content-and-acceptance.md)。
 - GitHub/脚本/普通项目迁移：再读 [references/project-to-kit-porting-rules.md](references/project-to-kit-porting-rules.md)，可运行 `scripts/porting_analyzer.py`。
 - 生成/修改表单前查 `references/input_form_catalog.json`，优先 task_templates 和 field_recipes，使用 `scripts/input_form_cli.py`。
@@ -30,6 +31,7 @@ description: 开发、适配、修改、审查和打包 Asterfire Kit；支持�
 9. 每次运行生成专业中文 report.md：运行概览、方法、结果解释、可视化、结果访问和后续建议。结构用 molstar，轨迹按平台能力转换展示，图片 Markdown 嵌入；有绘图价值的数据生成图。详细 stdout/stderr/traceback 放日志文件，报告不展开。
 10. 修改后完成语法、JSON、表单、Demo 和输出检查，重新 `adam-cli build .` 交付新版 ZIP；检查包内业务完整且没有环境、权重或凭据。只做本地代码/ZIP时不自动发布；端到端请求由 DevOps 继续上传和轻量调试。
 11. 每次开发或修改完成后，由开发者执行测试与审查，在最终交付说明中输出固定六项单选总结及逐项证据，按[六项验收](references/user-content-and-acceptance.md#开发完成后的六项验收)执行。配置校验不能代替 Demo 实跑；未验证不能算通过。有缺陷先在授权范围内修复并复测，未通过则明确未完成项，不把验收总结写进用户运行报告。
+12. 校验表单、实际文件内容及输入间的一致性。预检在核心计算前执行，失败报告指出字段/文件/记录位置、实际与期望及修正办法。resAlloc 的估算校验和 call 的可见预检按[输入校验规范](references/input-validation-and-errors.md)衔接，代表性异常与正常对照须通过本次实际入口回归。
 
 ## 本地检查与交接
 

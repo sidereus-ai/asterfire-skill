@@ -77,9 +77,13 @@ class runner(Tool):
 
         try:
             # 示例：读取一个输入文件。请按真实 input.json 字段名修改。
-            input_file = _as_path(args["input_file"])
+            input_file = _as_path(args.get("input_file"))
             if not input_file.exists():
-                raise FileNotFoundError(f"输入文件不存在: {input_file}")
+                raise FileNotFoundError(f"input_file 对应的文件 {input_file.name} 不存在，请重新上传并绑定附件。")
+            if not input_file.is_file():
+                raise ValueError(f"input_file 需要单个文件，当前 {input_file.name} 是目录，请选择目录中的实际文件。")
+            if input_file.stat().st_size == 0:
+                raise ValueError(f"input_file 对应的文件 {input_file.name} 为 0 字节，请上传有内容的文件。")
 
             local_input = cwd / input_file.name
             if input_file.resolve() != local_input.resolve():
@@ -119,7 +123,7 @@ class runner(Tool):
             )
             print("[调试] returncode:", returncode)
             if returncode != 0:
-                warnings.append(f"命令返回非零状态码: {returncode}")
+                raise RuntimeError(f"核心程序执行失败，退出码 {returncode}。请查看 run.log 中的错误输出。")
 
             result_path.write_text(
                 "\n".join([
@@ -184,21 +188,21 @@ class runner(Tool):
                 method="项目适配入口执行失败。请优先检查输入参数、文件格式和原项目依赖环境。",
                 command=command,
                 returncode=returncode,
-                outputs={"result_file": result_path, "report": report_path, "run_log": run_log},
+                outputs={"report": report_path, "run_log": run_log},
                 warnings=warnings,
-                structure_files=_find_files(cwd, STRUCTURE_SUFFIXES),
-                image_files=_find_files(cwd, IMAGE_SUFFIXES),
+                structure_files=[],
+                image_files=[],
                 followup_suggestions=["检查输入文件是否符合原项目要求。", "下载 run.log 查看完整错误细节。"],
             )
             print("[错误] 运行失败，详细信息已写入 run.log")
-            raise
+            return {"report": _rel(report_path), "run_log": _rel(run_log), "success": False}
 
 
 def _as_path(value):
     """归一化平台上传文件值，兼容字符串、对象和列表。"""
     if isinstance(value, list):
-        if not value:
-            raise ValueError("文件列表为空")
+        if len(value) != 1:
+            raise ValueError(f"input_file 需要单个文件，当前收到 {len(value)} 项，请绑定一个附件。")
         value = value[0]
     if isinstance(value, dict):
         for key in ("path", "file", "url", "value", "name"):
@@ -206,7 +210,11 @@ def _as_path(value):
                 value = value[key]
                 break
     if not isinstance(value, (str, os.PathLike)):
-        raise TypeError(f"无法识别的文件路径格式: {type(value).__name__}")
+        raise ValueError("input_file 缺少有效文件引用，请上传并绑定一个文件。")
+    if not str(value).strip():
+        raise ValueError("input_file 为空，请上传并绑定一个文件。")
+    if str(value).lower().startswith(("http://", "https://")):
+        raise ValueError("input_file 需要本次任务可读的文件，请先上传并绑定附件。")
     return Path(value).expanduser()
 
 

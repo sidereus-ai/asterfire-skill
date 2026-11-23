@@ -49,11 +49,15 @@ class runner(Tool):
         log_chunks = []
 
         try:
-            input_file = _as_path(args["input_file"])
+            input_file = _as_path(args.get("input_file"))
             print("[调试] 归一化后的输入文件:", str(input_file))
 
             if not input_file.exists():
-                raise FileNotFoundError(f"输入文件不存在: {input_file}")
+                raise FileNotFoundError(f"input_file 对应的文件 {input_file.name} 不存在，请重新上传并绑定附件。")
+            if not input_file.is_file():
+                raise ValueError(f"input_file 需要单个文件，当前 {input_file.name} 是目录，请选择目录中的实际文件。")
+            if input_file.stat().st_size == 0:
+                raise ValueError(f"input_file 对应的文件 {input_file.name} 为 0 字节，请上传有内容的文件。")
 
             # 示例命令：真实 Kit 中应替换为该工具真正需要执行的命令。
             command = ["python", "--version"]
@@ -84,7 +88,7 @@ class runner(Tool):
                 ]
             )
             if returncode != 0:
-                warnings.append(f"命令返回非零状态码: {returncode}")
+                raise RuntimeError(f"核心程序执行失败，退出码 {returncode}。请查看 run.log 中的错误输出。")
 
             # 所有输出都写入当前工作目录。这里复制一份输入文件，便于报告追踪。
             copied_input = cwd / input_file.name
@@ -139,9 +143,9 @@ class runner(Tool):
                 "success": bool(output_file.exists() and report_file.exists() and returncode == 0),
             }
 
-        except Exception:
+        except Exception as exc:
             error_text = traceback.format_exc()
-            warnings.append("运行失败，详细错误已写入 run.log。")
+            warnings.append(f"失败原因：{exc}")
             log_chunks.extend(["", "## 异常信息", error_text])
             run_log.write_text("\n".join(log_chunks) + "\n", encoding="utf-8")
             _write_report(
@@ -149,21 +153,21 @@ class runner(Tool):
                 status="失败",
                 args=args,
                 method="任务执行过程中发生错误，主要原因请先查看运行概览和输出文件检查。",
-                outputs={"output_file": output_file, "report": report_file, "run_log": run_log},
+                outputs={"report": report_file, "run_log": run_log},
                 warnings=warnings,
-                structure_files=_find_files(cwd, STRUCTURE_SUFFIXES),
-                image_files=_find_files(cwd, IMAGE_SUFFIXES),
+                structure_files=[],
+                image_files=[],
                 followup_suggestions=["检查输入文件格式和必填参数是否正确。", "下载 run.log 查看完整错误细节。"],
             )
             print("[错误] 运行失败，详细信息已写入 run.log")
-            raise
+            return {"report": _rel(report_file), "run_log": _rel(run_log), "success": False}
 
 
 def _as_path(value):
     """归一化平台上传文件值，兼容字符串、对象和列表。"""
     if isinstance(value, list):
-        if not value:
-            raise ValueError("文件列表为空")
+        if len(value) != 1:
+            raise ValueError(f"input_file 需要单个文件，当前收到 {len(value)} 项，请绑定一个附件。")
         value = value[0]
     if isinstance(value, dict):
         for key in ("path", "file", "url", "value", "name"):
@@ -171,7 +175,11 @@ def _as_path(value):
                 value = value[key]
                 break
     if not isinstance(value, (str, os.PathLike)):
-        raise TypeError(f"无法识别的文件路径格式: {type(value).__name__}")
+        raise ValueError("input_file 缺少有效文件引用，请上传并绑定一个文件。")
+    if not str(value).strip():
+        raise ValueError("input_file 为空，请上传并绑定一个文件。")
+    if str(value).lower().startswith(("http://", "https://")):
+        raise ValueError("input_file 需要本次任务可读的文件，请先上传并绑定附件。")
     return Path(value).expanduser()
 
 
